@@ -4,7 +4,7 @@ Course Project from 3D Scanning and Motion Capture at TUM
 https://sharelatex.tum.de/project/639468018f773b1b855819e5
 # Structure of Files
 └── ProjectKinectFusion\  
-   ├── KinectFusionRemake\ The git cloned folder 
+   ├── KinectFusionRemake\ The git cloned folder  
    │   ├── main.cpp\  
    │   └─── CMake.Lists  
    ├── Libs  
