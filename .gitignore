@@ -1,4 +1,6 @@
 Libs/
 .vs/
+.idea/
 out/
 build/
+cmake-build-*/
