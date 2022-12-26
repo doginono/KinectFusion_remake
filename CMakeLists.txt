@@ -1,11 +1,12 @@
-cmake_minimum_required(VERSION 3.6)
+cmake_minimum_required(VERSION 3.17)
+set(CMAKE_CXX_STANDARD 14)
 
 set(CMAKE_CONFIGURATION_TYPES Debug Release CACHE TYPE INTERNAL FORCE)
-
 project(KinectFusion_remake)
 
 # Options
 set(LIBRARY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../Libs CACHE PATH "Path to lib folder")
+set(SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src CACHE PATH "Path to source folder")
 set(Eigen3_DIR ${LIBRARY_DIR}/Eigen/share/eigen3/cmake CACHE PATH "Path to installed Eigen")
 set(glog_DIR ${LIBRARY_DIR}/glog-lib/lib/cmake/glog CACHE PATH "Path to installed glog")
 set(Ceres_DIR ${LIBRARY_DIR}/Ceres/CMake CACHE PATH "Path to installed Ceres")
@@ -23,46 +24,25 @@ if(WIN32)
 endif(WIN32)
 
 # Set C++ flags
-set(CMAKE_CXX_STANDARD 14)
 
 #find_package(nanoflann REQUIRED)
 find_package(Ceres REQUIRED)
 find_package(glog REQUIRED)
-get_target_property(GLOG_DLL_PATH_DEBUG glog::glog IMPORTED_LOCATION_DEBUG)
-get_target_property(GLOG_DLL_PATH_RELEASE glog::glog IMPORTED_LOCATION_RELEASE)
 
-add_definitions("-D_DISABLE_EXTENDED_ALIGNED_STORAGE")
+find_package(CUDAToolkit REQUIRED)
+find_package(CUDA REQUIRED)
+include_directories("${CUDA_INCLUDE_DIRS}")
+enable_language(CUDA)
 
-set(HEADER_FILES 
+set(HEADER_FILES
+    ${SOURCE_DIR}/SurfaceMeasurement.h
 )
 
 set(SOURCE_FILES 
+    ${SOURCE_DIR}/SurfaceMeasurement.cu
 )
 
 link_directories(${FreeImage_LIBRARY_DIR})
 add_executable(KinectFusion_remake main.cpp ${HEADER_FILES} ${SOURCE_FILES})
-target_link_libraries(KinectFusion_remake ceres freeimage Eigen3::Eigen)
+target_link_libraries(KinectFusion_remake ceres freeimage Eigen3::Eigen )
 target_include_directories(KinectFusion_remake PUBLIC ${EIGEN3_INCLUDE_DIR} ${FreeImage_INCLUDE_DIR} ${Flann_INCLUDE_DIR})
-
-# On Windows copy dll to executable folder
-if(WIN32)
-    # Visual Studio properties
-    set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT KinectFusion_remake)
-    set_property(TARGET KinectFusion_remake PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/)
-
-    # On Windows copy dll to executable folder
-    add_custom_command(TARGET KinectFusion_remake POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${FreeImage_LIBRARY_DIR}/FreeImage.dll"
-            ${CMAKE_BINARY_DIR})
-    
-    add_custom_command(TARGET KinectFusion_remake POST_BUILD        
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different          
-            "${GLOG_DLL_PATH_DEBUG}"                           
-            ${CMAKE_BINARY_DIR})                     
-    
-    add_custom_command(TARGET KinectFusion_remake POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${GLOG_DLL_PATH_RELEASE}"
-            ${CMAKE_BINARY_DIR})
-endif(WIN32)
