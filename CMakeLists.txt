@@ -31,14 +31,31 @@ find_package(glog REQUIRED)
 
 find_package(CUDAToolkit REQUIRED)
 find_package(CUDA REQUIRED)
+
 include_directories("${CUDA_INCLUDE_DIRS}")
 enable_language(CUDA)
+set(
+    CUDA_NVCC_FLAGS
+    ${CUDA_NVCC_FLAGS};
+    -O3 -gencode arch=compute_22,code=sm_22
+    )
 
 set(HEADER_FILES
-    ${SOURCE_DIR}/SurfaceMeasurement.h
+    ${SOURCE_DIR}/SurfaceMeasurement.cuh
+    ${SOURCE_DIR}/PointCloud.h
+    ${SOURCE_DIR}/VirtualSensor.h
+    ${SOURCE_DIR}/PointCloud.h
+    ${SOURCE_DIR}/FreeImageHelper.h
+    ${SOURCE_DIR}/Eigen.h
+    ${SOURCE_DIR}/SimpleMesh.h
+
+
+
 )
 
 set(SOURCE_FILES 
+    ${SOURCE_DIR}/FreeImageHelper.cpp
+
     ${SOURCE_DIR}/SurfaceMeasurement.cu
 )
 
