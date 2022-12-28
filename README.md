@@ -3,11 +3,12 @@ Course Project from 3D Scanning and Motion Capture at TUM
 # Latex report
 https://sharelatex.tum.de/project/639468018f773b1b855819e5
 
-Structure of Files
+# Project Structure
+
 └── ProjectKinectFusion\
    ├── KinectFusionRemake\ The git cloned folder
    │   ├── main.cpp\
-   │   └─── CMake.Lists  
+   │   └─── CMakeLists.txt  
    ├── Libs 
    │   ├── Ceres
    │   ├── Eigen
@@ -16,4 +17,6 @@ Structure of Files
    │   └── Flann  
    ├── Data
    └── build
+
+
 If you do not want or think we are not going to need any file feel free to change CMakelist.txt as you wish.
