@@ -1,6 +1,8 @@
 #pragma once
-
-
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+#include "SurfaceMeasurement.cuh"
+#include <time.h>
 #include "Eigen.h"
 
 typedef Eigen::Matrix<unsigned char, 4, 1> Vector4uc;
@@ -24,9 +26,17 @@ public:
 
         // Back-project the pixel depths into the camera space.
         std::vector<Vector3f> pointsTmp(width * height);
-
         // For every pixel row.
         //paralelize with GPUUUU
+        // 
+        
+
+        CUDA::example(depthMap,pointsTmp);
+
+        std::vector<float> camparams = { fovX ,fovY ,cX ,cY };
+        
+        CUDA::initSensorFrame(depthMap, rotationInv, translationInv, camparams, pointsTmp);
+/*
 #pragma omp parallel for
         for (int v = 0; v < height; ++v) {
             // For every pixel in a row.
@@ -37,15 +47,20 @@ public:
                     pointsTmp[idx] = Vector3f(MINF, MINF, MINF);
                 }
                 else {
+                    // this equation is same as the equation (3) on the kinectfusion paper
+                    // Calculate it to get the position of the points from the sensors point of view
+                    // After calculating it will be possible to optimize as the difference between frames will be minimal => ICP
                     // Back-projection to camera space.
                     pointsTmp[idx] = rotationInv * Vector3f((u - cX) / fovX * depth, (v - cY) / fovY * depth, depth) + translationInv;
                 }
             }
         }
 
+*/
+        //
         // We need to compute derivatives and then the normalized normal vector (for valid pixels).
         std::vector<Vector3f> normalsTmp(width * height);
-//Parallelize for normals
+//Parallelize for normals CUDA
 #pragma omp parallel for
         for (int v = 1; v < height - 1; ++v) {
             for (int u = 1; u < width - 1; ++u) {
@@ -90,69 +105,7 @@ public:
             }
         }
     }
-
-    bool readFromFile(const std::string& filename) {
-        std::ifstream is(filename, std::ios::in | std::ios::binary);
-        if (!is.is_open()) {
-            std::cout << "ERROR: unable to read input file!" << std::endl;
-            return false;
-        }
-
-        char nBytes;
-        is.read(&nBytes, sizeof(char));
-
-        unsigned int n;
-        is.read((char*)&n, sizeof(unsigned int));
-
-        if (nBytes == sizeof(float)) {
-            float* ps = new float[3 * n];
-
-            is.read((char*)ps, 3 * sizeof(float) * n);
-
-            for (unsigned int i = 0; i < n; i++) {
-                Eigen::Vector3f p(ps[3 * i + 0], ps[3 * i + 1], ps[3 * i + 2]);
-                m_points.push_back(p);
-            }
-
-            is.read((char*)ps, 3 * sizeof(float) * n);
-            for (unsigned int i = 0; i < n; i++) {
-                Eigen::Vector3f p(ps[3 * i + 0], ps[3 * i + 1], ps[3 * i + 2]);
-                m_normals.push_back(p);
-            }
-
-            delete ps;
-        }
-        else {
-            double* ps = new double[3 * n];
-
-            is.read((char*)ps, 3 * sizeof(double) * n);
-
-            for (unsigned int i = 0; i < n; i++) {
-                Eigen::Vector3f p((float)ps[3 * i + 0], (float)ps[3 * i + 1], (float)ps[3 * i + 2]);
-                m_points.push_back(p);
-            }
-
-            is.read((char*)ps, 3 * sizeof(double) * n);
-
-            for (unsigned int i = 0; i < n; i++) {
-                Eigen::Vector3f p((float)ps[3 * i + 0], (float)ps[3 * i + 1], (float)ps[3 * i + 2]);
-                m_normals.push_back(p);
-            }
-
-            delete ps;
-        }
-
-
-        //std::ofstream file("pointcloud.off");
-        //file << "OFF" << std::endl;
-        //file << m_points.size() << " 0 0" << std::endl;
-        //for(unsigned int i=0; i<m_points.size(); ++i)
-        //	file << m_points[i].x() << " " << m_points[i].y() << " " << m_points[i].z() << std::endl;
-        //file.close();
-
-        return true;
-    }
-
+    
     std::vector<Vector3f>& getPoints() {
         return m_points;
     }
@@ -168,7 +121,7 @@ public:
     const std::vector<Vector3f>& getNormals() const {
         return m_normals;
     }
-
+    //CUDA
     unsigned int getClosestPoint(Vector3f& p) {
         unsigned int idx = 0;
 

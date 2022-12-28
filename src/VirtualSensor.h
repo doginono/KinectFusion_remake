@@ -1,12 +1,19 @@
 #pragma once
 
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+#include "src/SurfaceMeasurement.cuh"
+
+#include "Eigen.h"
+#include "FreeImageHelper.h"
+//to check performance
+#include <time.h>       /* clock_t, clock, CLOCKS_PER_SEC */
+
+
 #include <vector>
 #include <iostream>
 #include <cstring>
 #include <fstream>
-
-#include "Eigen.h"
-#include "FreeImageHelper.h"
 
 typedef unsigned char BYTE;
 
@@ -51,10 +58,12 @@ public:
 
 		m_depthFrame = new float[m_depthImageWidth * m_depthImageHeight];
 		for (unsigned int i = 0; i < m_depthImageWidth * m_depthImageHeight; ++i) m_depthFrame[i] = 0.5f;
-		//GPU
+		//CUDA::initDepthMap(m_depthImageWidth, m_depthImageHeight, m_depthFrame);
+		
+		//std::cout << m_depthFrame[m_depthImageWidth * m_depthImageHeight-1] << std::endl;
+
 		m_colorFrame = new BYTE[4 * m_colorImageWidth * m_colorImageHeight];
 		for (unsigned int i = 0; i < 4 * m_colorImageWidth * m_colorImageHeight; ++i) m_colorFrame[i] = 255;
-		//GPU
 
 
 		m_currentIdx = -1;
@@ -78,6 +87,7 @@ public:
 		dImage.LoadImageFromFile(m_baseDir + m_filenameDepthImages[m_currentIdx]);
 
 		//GPU
+
 		for (unsigned int i = 0; i < m_depthImageWidth * m_depthImageHeight; ++i) {
 			if (dImage.data[i] == 0)
 				m_depthFrame[i] = MINF;

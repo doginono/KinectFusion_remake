@@ -40,6 +40,7 @@ set(
     -O3 -gencode arch=compute_22,code=sm_22
     )
 
+
 set(HEADER_FILES
     ${SOURCE_DIR}/SurfaceMeasurement.cuh
     ${SOURCE_DIR}/PointCloud.h
@@ -62,4 +63,8 @@ set(SOURCE_FILES
 link_directories(${FreeImage_LIBRARY_DIR})
 add_executable(KinectFusion_remake main.cpp ${HEADER_FILES} ${SOURCE_FILES})
 target_link_libraries(KinectFusion_remake ceres freeimage Eigen3::Eigen )
+target_compile_options(KinectFusion_remake PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
+                       --expt-relaxed-constexpr
+                       >)
+
 target_include_directories(KinectFusion_remake PUBLIC ${EIGEN3_INCLUDE_DIR} ${FreeImage_INCLUDE_DIR} ${Flann_INCLUDE_DIR})
