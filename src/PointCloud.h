@@ -33,9 +33,28 @@ public:
 
         CUDA::example(depthMap,pointsTmp);
 
+
         std::vector<float> camparams = { fovX ,fovY ,cX ,cY };
-        
         CUDA::initSensorFrame(depthMap, rotationInv, translationInv, camparams, pointsTmp);
+
+        std::vector<Vector3f> normalsTmp(width * height);
+        CUDA::initnormalMap(depthMap, maxDistanceHalved, normalsTmp);
+        
+        //can be parallelized later
+        const unsigned nPoints = pointsTmp.size();
+        m_points.reserve(std::floor(float(nPoints) / downsampleFactor));
+        m_normals.reserve(std::floor(float(nPoints) / downsampleFactor));
+
+        for (int i = 0; i < nPoints; i = i + downsampleFactor) {
+            const auto& point = pointsTmp[i];
+            const auto& normal = normalsTmp[i];
+
+            if (point.allFinite() && normal.allFinite()) {
+                m_points.push_back(point);
+                m_normals.push_back(normal);
+            }
+        }
+
 /*
 #pragma omp parallel for
         for (int v = 0; v < height; ++v) {
@@ -56,10 +75,9 @@ public:
             }
         }
 
-*/
+
         //
         // We need to compute derivatives and then the normalized normal vector (for valid pixels).
-        std::vector<Vector3f> normalsTmp(width * height);
 //Parallelize for normals CUDA
 #pragma omp parallel for
         for (int v = 1; v < height - 1; ++v) {
@@ -75,8 +93,16 @@ public:
 
                 // TODO: Compute the normals using central differences. 
                 //normalsTmp[idx] = Vector3f(1, 1, 1); // Needs to be replaced.
+                // Can be uncommented to check if both calculated normals are the same
+                //Vector3f tmp = Vector3f(du, -dv, 1);
+                //tmp.normalize();
+                //if (normalsTmp[idx] != tmp){
+                //   std::cout << "noooo" << std::endl;
+                //}
+                
                 normalsTmp[idx] = Vector3f(du, -dv, 1);
                 normalsTmp[idx].normalize();
+
             }
         }
 
@@ -91,7 +117,7 @@ public:
         }
 
         // We filter out measurements where either point or normal is invalid.
-        const unsigned nPoints = pointsTmp.size();
+        //const unsigned nPoints = pointsTmp.size();
         m_points.reserve(std::floor(float(nPoints) / downsampleFactor));
         m_normals.reserve(std::floor(float(nPoints) / downsampleFactor));
 
@@ -104,6 +130,7 @@ public:
                 m_normals.push_back(normal);
             }
         }
+        */
     }
     
     std::vector<Vector3f>& getPoints() {

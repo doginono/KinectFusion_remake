@@ -29,6 +29,24 @@ __global__ void initSensorFrame_kernel(const float* depthMap, const Matrix3f rot
 		}
 	}
 }
+
+__global__ void normalMap_kernel(const float* depthMap, float maxDistanceHalved, Vector3f* normalsTmp) {
+	//this should be done on gpu meaning 640 as input
+	int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
+	//modulo operator for edge cases in the border
+	if (tid < 640 * 480 || (tid%640)%480!=0 ) { //640*480 being the height and width
+		const float du = 0.5f * (depthMap[tid + 1] - depthMap[tid - 1]);
+		const float dv = 0.5f * (depthMap[tid + 640] - depthMap[tid - 640]);
+
+		if (du==MINF || dv==MINF || abs(du) > maxDistanceHalved || abs(dv) > maxDistanceHalved) {
+			normalsTmp[tid] = Vector3f(MINF, MINF, MINF);
+		}
+		else {
+			normalsTmp[tid] = Vector3f(du, -dv, 1);
+			normalsTmp[tid].normalize();
+		}
+	}
+}
 	
 	
 __global__ void example_kernel(float* depthmap,Vector3f* pointsTmp) {
@@ -63,23 +81,42 @@ namespace CUDA {
 
 		cudaMalloc(&camparamPointer, sizeof(float) * 4);
 		cudaMalloc((void**)&pointsPointer, sizeof(Vector3f) * 640 * 480);
-		
+
 		//copy the data to the GPU
 		cudaMemcpy(depthPointer, depthMap, sizeof(float) * 640 * 480, cudaMemcpyHostToDevice);
 		cudaMemcpy(camparamPointer, camparams.data(), sizeof(float) * 4, cudaMemcpyHostToDevice);
 		cudaMemcpy(pointsPointer, pointsTmp.data(), sizeof(Vector3f) * 640 * 480, cudaMemcpyHostToDevice);
 		//8 threads 1 block
-		initSensorFrame_kernel <<<4800, 64 >> > (depthPointer, rotationInv, translationInv, camparamPointer, pointsPointer);
+		initSensorFrame_kernel << <4800, 64 >> > (depthPointer, rotationInv, translationInv, camparamPointer, pointsPointer);
 		//After the calculation copy the value back to the CPU 
 		cudaMemcpy(pointsTmp.data(), pointsPointer, sizeof(Vector3f) * 640 * 480, cudaMemcpyDeviceToHost);
-		
+
 		//cudaDeviceSynchronize();
 		//Free the allocated memory on the GPU
 		cudaFree(depthPointer);
 		cudaFree(camparamPointer);
 		cudaFree(pointsPointer);
-		
+
 	}
+	void initnormalMap(float depthMap[], float maxDistanceHalved, std::vector<Vector3f>& normalsTmp){
+
+		float* depthPointer;
+		Vector3f* normalsPointer;
+
+		cudaMalloc(&depthPointer, sizeof(float) * 640 * 480);
+		cudaMalloc((void**)&normalsPointer, sizeof(Vector3f) * 640 * 480);
+
+		cudaMemcpy(depthPointer, depthMap, sizeof(float) * 640 * 480, cudaMemcpyHostToDevice);
+		cudaMemcpy(normalsPointer, normalsTmp.data(), sizeof(Vector3f) * 640 * 480, cudaMemcpyHostToDevice);
+
+		normalMap_kernel<<<4800, 64>>> (depthPointer, maxDistanceHalved,normalsPointer);
+
+		cudaMemcpy(normalsTmp.data(), normalsPointer, sizeof(Vector3f) * 640 * 480, cudaMemcpyDeviceToHost);
+
+		cudaFree(depthPointer);
+		cudaFree(normalsPointer);
+	}
+
 
 	//just example tried here to find the bug XD
 	void example(float depthMap[], std::vector<Vector3f>& pointsTmp) {

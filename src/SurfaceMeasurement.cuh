@@ -9,4 +9,6 @@ namespace CUDA{
 	void example(float depthMap[],std::vector<Vector3f>& pointsTmp);
 	void initSensorFrame(float depthMap[], Matrix3f& rotationInv,  Vector3f& translationInv,
 		std::vector<float>& camparams, std::vector<Vector3f>& pointsTmp) ;
+	void initnormalMap(float depthMap[],float maxDistanceHalved, std::vector<Vector3f>& normalsTmp);
+
 }
