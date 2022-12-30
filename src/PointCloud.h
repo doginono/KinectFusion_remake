@@ -4,7 +4,6 @@
 #include "SurfaceMeasurement.cuh"
 #include <time.h>
 #include "Eigen.h"
-
 typedef Eigen::Matrix<unsigned char, 4, 1> Vector4uc;
 
 
@@ -26,25 +25,22 @@ public:
 
         // Back-project the pixel depths into the camera space.
         std::vector<Vector3f> pointsTmp(width * height);
-        // For every pixel row.
-        //paralelize with GPUUUU
-        // 
         
-
-        CUDA::example(depthMap,pointsTmp);
-
-
+        // For every pixel row.
+        
+        m_depthExtrinsics = depthExtrinsics;
         std::vector<float> camparams = { fovX ,fovY ,cX ,cY };
         CUDA::initSensorFrame(depthMap, rotationInv, translationInv, camparams, pointsTmp);
 
         std::vector<Vector3f> normalsTmp(width * height);
         CUDA::initnormalMap(depthMap, maxDistanceHalved, normalsTmp);
-        
+
         //can be parallelized later
+        
         const unsigned nPoints = pointsTmp.size();
         m_points.reserve(std::floor(float(nPoints) / downsampleFactor));
         m_normals.reserve(std::floor(float(nPoints) / downsampleFactor));
-
+        
         for (int i = 0; i < nPoints; i = i + downsampleFactor) {
             const auto& point = pointsTmp[i];
             const auto& normal = normalsTmp[i];
@@ -54,83 +50,7 @@ public:
                 m_normals.push_back(normal);
             }
         }
-
-/*
-#pragma omp parallel for
-        for (int v = 0; v < height; ++v) {
-            // For every pixel in a row.
-            for (int u = 0; u < width; ++u) {
-                unsigned int idx = v * width + u; // linearized index
-                float depth = depthMap[idx];
-                if (depth == MINF) {
-                    pointsTmp[idx] = Vector3f(MINF, MINF, MINF);
-                }
-                else {
-                    // this equation is same as the equation (3) on the kinectfusion paper
-                    // Calculate it to get the position of the points from the sensors point of view
-                    // After calculating it will be possible to optimize as the difference between frames will be minimal => ICP
-                    // Back-projection to camera space.
-                    pointsTmp[idx] = rotationInv * Vector3f((u - cX) / fovX * depth, (v - cY) / fovY * depth, depth) + translationInv;
-                }
-            }
-        }
-
-
-        //
-        // We need to compute derivatives and then the normalized normal vector (for valid pixels).
-//Parallelize for normals CUDA
-#pragma omp parallel for
-        for (int v = 1; v < height - 1; ++v) {
-            for (int u = 1; u < width - 1; ++u) {
-                unsigned int idx = v * width + u; // linearized index
-
-                const float du = 0.5f * (depthMap[idx + 1] - depthMap[idx - 1]);
-                const float dv = 0.5f * (depthMap[idx + width] - depthMap[idx - width]);
-                if (!std::isfinite(du) || !std::isfinite(dv) || abs(du) > maxDistanceHalved || abs(dv) > maxDistanceHalved) {
-                    normalsTmp[idx] = Vector3f(MINF, MINF, MINF);
-                    continue;
-                }
-
-                // TODO: Compute the normals using central differences. 
-                //normalsTmp[idx] = Vector3f(1, 1, 1); // Needs to be replaced.
-                // Can be uncommented to check if both calculated normals are the same
-                //Vector3f tmp = Vector3f(du, -dv, 1);
-                //tmp.normalize();
-                //if (normalsTmp[idx] != tmp){
-                //   std::cout << "noooo" << std::endl;
-                //}
-                
-                normalsTmp[idx] = Vector3f(du, -dv, 1);
-                normalsTmp[idx].normalize();
-
-            }
-        }
-
-        // We set invalid normals for border regions.
-        for (int u = 0; u < width; ++u) {
-            normalsTmp[u] = Vector3f(MINF, MINF, MINF);
-            normalsTmp[u + (height - 1) * width] = Vector3f(MINF, MINF, MINF);
-        }
-        for (int v = 0; v < height; ++v) {
-            normalsTmp[v * width] = Vector3f(MINF, MINF, MINF);
-            normalsTmp[(width - 1) + v * width] = Vector3f(MINF, MINF, MINF);
-        }
-
-        // We filter out measurements where either point or normal is invalid.
-        //const unsigned nPoints = pointsTmp.size();
-        m_points.reserve(std::floor(float(nPoints) / downsampleFactor));
-        m_normals.reserve(std::floor(float(nPoints) / downsampleFactor));
-
-        for (int i = 0; i < nPoints; i = i + downsampleFactor) {
-            const auto& point = pointsTmp[i];
-            const auto& normal = normalsTmp[i];
-
-            if (point.allFinite() && normal.allFinite()) {
-                m_points.push_back(point);
-                m_normals.push_back(normal);
-            }
-        }
-        */
+        
     }
     
     std::vector<Vector3f>& getPoints() {
@@ -164,8 +84,8 @@ public:
         return idx;
     }
 
-private:
+public:
     std::vector<Vector3f> m_points;
     std::vector<Vector3f> m_normals;
-
+    Matrix4f m_depthExtrinsics;
 };

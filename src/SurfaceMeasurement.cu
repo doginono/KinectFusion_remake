@@ -37,7 +37,6 @@ __global__ void normalMap_kernel(const float* depthMap, float maxDistanceHalved,
 	if (tid < 640 * 480 || (tid%640)%480!=0 ) { //640*480 being the height and width
 		const float du = 0.5f * (depthMap[tid + 1] - depthMap[tid - 1]);
 		const float dv = 0.5f * (depthMap[tid + 640] - depthMap[tid - 640]);
-
 		if (du==MINF || dv==MINF || abs(du) > maxDistanceHalved || abs(dv) > maxDistanceHalved) {
 			normalsTmp[tid] = Vector3f(MINF, MINF, MINF);
 		}
@@ -72,13 +71,11 @@ namespace CUDA {
 
 		//allocate memory on the GPU of the size you want to change in our case sizeof(int) * N;
 		float* depthPointer;
-
 		float* camparamPointer;
 		Vector3f* pointsPointer;
+
 		cudaMalloc(&depthPointer, sizeof(float) * 640 * 480);
 		//4 variables in camparams
-		//printf("CUDALI.. %d clicks (%f seconds).\n", t, ((float)t) / CLOCKS_PER_SEC);
-
 		cudaMalloc(&camparamPointer, sizeof(float) * 4);
 		cudaMalloc((void**)&pointsPointer, sizeof(Vector3f) * 640 * 480);
 
@@ -86,9 +83,11 @@ namespace CUDA {
 		cudaMemcpy(depthPointer, depthMap, sizeof(float) * 640 * 480, cudaMemcpyHostToDevice);
 		cudaMemcpy(camparamPointer, camparams.data(), sizeof(float) * 4, cudaMemcpyHostToDevice);
 		cudaMemcpy(pointsPointer, pointsTmp.data(), sizeof(Vector3f) * 640 * 480, cudaMemcpyHostToDevice);
+		
 		//8 threads 1 block
 		initSensorFrame_kernel << <4800, 64 >> > (depthPointer, rotationInv, translationInv, camparamPointer, pointsPointer);
 		//After the calculation copy the value back to the CPU 
+		
 		cudaMemcpy(pointsTmp.data(), pointsPointer, sizeof(Vector3f) * 640 * 480, cudaMemcpyDeviceToHost);
 
 		//cudaDeviceSynchronize();
