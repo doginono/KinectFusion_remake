@@ -25,7 +25,7 @@ __global__ void initSensorFrame_kernel(const float* depthMap, const Matrix3f rot
 		else {
 			int u = (blockIdx.x * blockDim.x + threadIdx.x)%640;
 			int v = int((blockIdx.x * blockDim.x + threadIdx.x) / 640);
-			pointsTmp[tid] = rotationInv * Vector3f((u - camparams[2]) / camparams[0] * depthMap[tid], (v - camparams[3]) / camparams[1] * depthMap[tid], depthMap[tid]) + translationInv;
+			pointsTmp[tid] = Vector3f((u - camparams[2]) / camparams[0] * depthMap[tid], (v - camparams[3]) / camparams[1] * depthMap[tid], depthMap[tid]);
 		}
 	}
 }

@@ -23,13 +23,14 @@ public:
         Matrix3f rotationInv = depthExtrinsicsInv.block(0, 0, 3, 3);
         Vector3f translationInv = depthExtrinsicsInv.block(0, 3, 3, 1);
 
-        // Back-project the pixel depths into the camera space.
+        // Back-project the pixel depths into the camera space. In camera Space
         std::vector<Vector3f> pointsTmp(width * height);
         
         // For every pixel row.
         
         m_depthExtrinsics = depthExtrinsics;
         std::vector<float> camparams = { fovX ,fovY ,cX ,cY };
+        // took the depth value in CAMSPACE Let it be in camspace// the rotvalues are not needed
         CUDA::initSensorFrame(depthMap, rotationInv, translationInv, camparams, pointsTmp);
 
         std::vector<Vector3f> normalsTmp(width * height);
