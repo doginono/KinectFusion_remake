@@ -8,5 +8,5 @@ namespace CUDA {
 	//Wrapper to call the kernel function on the GPU
 	//an example function about how to call the cuda functions(Wrapper)
 	void poseEstimation(PointCloud& source, PointCloud& previous, std::vector<float>& camparams,
-		Matrix4f& lastpose, Matrix4f& transMatrixcur, Matrix4f& worldToCam, std::vector<int>& correspondencesArray);
+		Matrix4f& lastpose, Matrix4f& transMatrixcur, Matrix3f& previousRotInv, std::vector<int>& correspondencesArray);
 }

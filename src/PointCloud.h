@@ -34,7 +34,7 @@ public:
         CUDA::initSensorFrame(depthMap, rotationInv, translationInv, camparams, pointsTmp);
 
         std::vector<Vector3f> normalsTmp(width * height);
-        CUDA::initnormalMap(depthMap, maxDistanceHalved, normalsTmp);
+        CUDA::initnormalMap(pointsTmp, maxDistanceHalved, normalsTmp);
 
         //can be parallelized later
         
