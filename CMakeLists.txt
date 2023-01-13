@@ -43,20 +43,18 @@ set(
 
 set(HEADER_FILES
     ${SOURCE_DIR}/SurfaceMeasurement.cuh
+    ${SOURCE_DIR}/PoseEstimation.cuh
     ${SOURCE_DIR}/PointCloud.h
     ${SOURCE_DIR}/VirtualSensor.h
     ${SOURCE_DIR}/PointCloud.h
     ${SOURCE_DIR}/FreeImageHelper.h
     ${SOURCE_DIR}/Eigen.h
     ${SOURCE_DIR}/SimpleMesh.h
-
-
-
 )
 
 set(SOURCE_FILES 
     ${SOURCE_DIR}/FreeImageHelper.cpp
-
+    ${SOURCE_DIR}/PoseEstimation.cu
     ${SOURCE_DIR}/SurfaceMeasurement.cu
 )
 

@@ -59,7 +59,6 @@ public:
 		m_depthFrame = new float[m_depthImageWidth * m_depthImageHeight];
 		for (unsigned int i = 0; i < m_depthImageWidth * m_depthImageHeight; ++i) m_depthFrame[i] = 0.5f;
 		//CUDA::initDepthMap(m_depthImageWidth, m_depthImageHeight, m_depthFrame);
-		
 		//std::cout << m_depthFrame[m_depthImageWidth * m_depthImageHeight-1] << std::endl;
 
 		m_colorFrame = new BYTE[4 * m_colorImageWidth * m_colorImageHeight];
@@ -78,9 +77,6 @@ public:
 
 		std::cout << "ProcessNextFrame [" << m_currentIdx << " | " << m_filenameColorImages.size() << "]" << std::endl;
 		//not needed?
-		FreeImageB rgbImage;
-		rgbImage.LoadImageFromFile(m_baseDir + m_filenameColorImages[m_currentIdx]);
-		memcpy(m_colorFrame, rgbImage.data, 4 * 640 * 480);
 
 		// depth images are scaled by 5000 (see https://vision.in.tum.de/data/datasets/rgbd-dataset/file_formats)
 		FreeImageU16F dImage;
