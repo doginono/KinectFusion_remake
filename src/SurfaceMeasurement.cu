@@ -25,6 +25,7 @@ __global__ void initSensorFrame_kernel(const float* depthMap, const Matrix3f rot
 		else {
 			int u = (blockIdx.x * blockDim.x + threadIdx.x)%640;
 			int v = int((blockIdx.x * blockDim.x + threadIdx.x) / 640);
+			//Camera Intrincs ~=~ camparams
 			pointsTmp[tid] = Vector3f((u - camparams[2]) * depthMap[tid] / camparams[0], (v - camparams[3]) * depthMap[tid] / camparams[1] , depthMap[tid]);
 		}
 	}
@@ -84,7 +85,7 @@ namespace CUDA {
 		cudaMemcpy(camparamPointer, camparams.data(), sizeof(float) * 4, cudaMemcpyHostToDevice);
 		cudaMemcpy(pointsPointer, pointsTmp.data(), sizeof(Vector3f) * 640 * 480, cudaMemcpyHostToDevice);
 		
-		//8 threads 1 block
+		//8 threads 1 block 640*480 
 		initSensorFrame_kernel << <4800, 64 >> > (depthPointer, rotationInv, translationInv, camparamPointer, pointsPointer);
 		//After the calculation copy the value back to the CPU 
 		

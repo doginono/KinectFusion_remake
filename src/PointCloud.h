@@ -37,7 +37,9 @@ public:
         CUDA::initnormalMap(pointsTmp, maxDistanceHalved, normalsTmp);
 
         //can be parallelized later
-        
+        m_points = pointsTmp;
+        m_normals = normalsTmp;
+        /*
         const unsigned nPoints = pointsTmp.size();
         m_points.reserve(std::floor(float(nPoints) / downsampleFactor));
         m_normals.reserve(std::floor(float(nPoints) / downsampleFactor));
@@ -51,6 +53,7 @@ public:
                 m_normals.push_back(normal);
             }
         }
+        */
         
     }
     

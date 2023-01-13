@@ -35,15 +35,15 @@ __global__ void poseEstimation_kernel(float* camparams, Vector3f* verticesSource
 			if ( pixelCoord[0] > 0 && pixelCoord[0] < 640 && pixelCoord[1] > 0 && pixelCoord[1] < 480 )
 			{
 				//to world coordinates estimatedPose transforms in world coordinates
-				Vector3f vertexPrevGlobal = estimatedPose.block<3, 3>(0, 0) * verticesPrevious[pixelCoord[0] * pixelCoord[1]] + estimatedPose.block<3, 1>(0, 3);
+				Vector3f vertexPrevGlobal = estimatedPose.block<3, 3>(0, 0) * verticesPrevious[pixelCoord[1] * 640 + pixelCoord[0]] + estimatedPose.block<3, 1>(0, 3);
 				
 				//here the normals are also considered that they are not much different meaning that the vertices can be matched
-				if ((vertexPrevGlobal - currentVertexGlobal).norm() < 0.01 && normalsSource[tid].norm() !=MINF &&
-					normalsPrevious[pixelCoord[0] * pixelCoord[1]].norm() != MINF &&
-					(transMatrixcur.block<3, 3>(0, 0) * normalsSource[tid]).cross(estimatedPose.block<3, 3>(0, 0) * normalsPrevious[pixelCoord[0] * pixelCoord[1]]).norm()>0.2)
+				if ((vertexPrevGlobal - currentVertexGlobal).norm() < 1 && normalsSource[tid].norm() !=MINF &&
+					normalsPrevious[pixelCoord[1] * 640 + pixelCoord[0]].norm() != MINF &&
+					(transMatrixcur.block<3, 3>(0, 0) * normalsSource[tid]).cross(estimatedPose.block<3, 3>(0, 0) * normalsPrevious[pixelCoord[1] * 640 + pixelCoord[0]]).norm()>0.2)
 				{
 					//printf("Difference, Coordinates %f %i %i \n", (vertexPrevGlobal - currentVertexGlobal).norm(), pixelCoord[0] , pixelCoord[1]);
-					correspondencesArray[tid] = pixelCoord[0] * pixelCoord[1];
+					correspondencesArray[tid] = pixelCoord[1] * 640 + pixelCoord[0];
 				}
 			}
 		}

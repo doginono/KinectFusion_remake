@@ -41,7 +41,7 @@ bool reconstructRoom(std::string path, std::string outName) {
         tempo.push_back(0);
     }
     int iter = 0;
-    const int iMax = 5;
+    const int iMax = 10;
     /* 
     * First we have two camera space vertices
     * the camera spaces are different but still really similar
@@ -71,24 +71,29 @@ bool reconstructRoom(std::string path, std::string outName) {
         float cY = depthIntrinsics(1, 2);
         std::vector<float> camparams = { fovX ,fovY ,cX ,cY };
 
-        for(int j=0;j<10;j++){
-        // First begin with current cameratoworld being identity
-        // Update it incrementally for loop change now okay
-        //transmatrixcurr updated everytime holds the pose
-        //empty vector init with zeros
+        for (int j = 0; j < 2; j++) {
+            // First begin with current cameratoworld being identity
+            // Update it incrementally for loop change now okay
+            //transmatrixcurr updated everytime holds the pose
+            //empty vector init with zeros
+
+                // Matrix from camera Space to World space
+                //640*480 all value zeros
             std::vector<int> correspondencesArray = tempo;
             //estimatedPoses[iter] is the last found pose. which is not updated. hold it for transformations
-            CUDA::poseEstimation(source, target, camparams, 
+            CUDA::poseEstimation(source, target, camparams,
                 estimatedPoseBefore, transMatrixcur, previousRotInv, correspondencesArray);
-
+            //400*400 400*400 pixel correspo
+            //402*300 400*400
             unsigned nPoints = correspondencesArray.size();
-            //correspondencesArray.erase(std::remove(begin(correspondencesArray), end(correspondencesArray), 0), end(correspondencesArray));
 
-            nPoints = correspondencesArray.size();
-            std::cout << "how many correspondences: " << nPoints << std::endl;
-            
-            MatrixXf A = MatrixXf::Zero( nPoints, 6);
-            VectorXf b = VectorXf::Zero( nPoints);
+            // correspondencesArray.erase(std::remove(begin(correspondencesArray), end(correspondencesArray), 0), end(correspondencesArray));
+
+             //nPoints = correspondencesArray.size();
+
+
+            MatrixXf A = MatrixXf::Zero(nPoints, 6);
+            VectorXf b = VectorXf::Zero(nPoints);
             //toworld coordinates current
             Matrix3f rotationtmp = transMatrixcur.block<3, 3>(0, 0);
             Vector3f translationtmp = transMatrixcur.block<3, 1>(0, 3);
@@ -97,57 +102,59 @@ bool reconstructRoom(std::string path, std::string outName) {
             Vector3f translationtmpBefore = estimatedPoseBefore.block<3, 1>(0, 3);
             std::cout << "rotationtmp" << rotationtmp << std::endl;
             std::cout << "rotationtmpBefore " << rotationtmpBefore << std::endl;
-            std::cout << "translationtmp" << rotationtmp << std::endl;
-            std::cout << "translationtmpBefore " << translationtmpBefore << std::endl;
-           
-            
+            //std::cout << "translationtmp" << rotationtmp << std::endl;
+            //std::cout << "translationtmpBefore " << translationtmpBefore << std::endl;
 
-            //fillthesystem
+
+
+            //fillthesystem 640*480
             for (unsigned i = 0; i < nPoints; i++)
             {
                 //worldspace //estimatedPose eklersin
                 if (correspondencesArray[i] == 0) {
                     continue;
                 }
-                const Vector3f& s = rotationtmp       * source.getPoints()[i] + translationtmp;
-                const Vector3f& d = rotationtmpBefore * target.getPoints()[correspondencesArray[i]] + translationtmpBefore;
+                const Vector3f& s = rotationtmp * source.getPoints()[i] + translationtmp; // Frame 2 in global
+                const Vector3f& d = rotationtmpBefore * target.getPoints()[correspondencesArray[i]] + translationtmpBefore;// Frame 1 in global
                 const Vector3f& n = rotationtmpBefore * target.getNormals()[correspondencesArray[i]];
-               
+
 
                 // TODO: Add the point-to-plane constraints to the system one row
-                A( i, 0) = n[2] * s[1] - n[1] * s[2];
-                A( i, 1) = n[0] * s[2] - n[2] * s[0];
-                A( i, 2) = n[1] * s[0] - n[0] * s[1];
-                A( i, 3) = n[0];
-                A( i, 4) = n[1];
-                A( i, 5) = n[2];
-                b( i) = n[0] * d[0] + n[1] * d[1] + n[2] * d[2] - n[0] * s[0] - n[1] * s[1] - n[2] * s[2];
+                A(i, 0) = n[2] * s[1] - n[1] * s[2];
+                A(i, 1) = n[0] * s[2] - n[2] * s[0];
+                A(i, 2) = n[1] * s[0] - n[0] * s[1];
+                A(i, 3) = n[0];
+                A(i, 4) = n[1];
+                A(i, 5) = n[2];
+                b(i) = n[0] * d[0] + n[1] * d[1] + n[2] * d[2] - n[0] * s[0] - n[1] * s[1] - n[2] * s[2];
 
-              
+
             }
-            
-            // TODO: Solve the system ans!!!
-            VectorXf x(6);
-            x = A.bdcSvd(ComputeThinU | ComputeThinV).solve(b); 
-            float alpha = x(0), beta = x(1), gamma = x(2);
-
-            // Build the pose matrix
-            Matrix3f rotation = AngleAxisf(alpha, Vector3f::UnitX()).toRotationMatrix() *
-                                AngleAxisf(beta,  Vector3f::UnitY()).toRotationMatrix() *
-                                AngleAxisf(gamma, Vector3f::UnitZ()).toRotationMatrix();
-                
-            Vector3f translation = x.tail(3);
-
-            // TODO: Build the pose matrix using the rotation and translation matrices
-            //transMatrixcur = estimatedPose*transMatrixcur;
-            std::cout << "rotation "    << rotation    << std::endl;
-            std::cout << "translation " << translation << std::endl;
-
-            transMatrixcur.block<3, 3>(0, 0) = rotation * transMatrixcur.block<3, 3>(0, 0);
-            transMatrixcur.block<3, 1>(0, 3) = rotation * transMatrixcur.block<3, 1>(0, 3) + translation;
 
             correspondencesArray.erase(std::remove(begin(correspondencesArray), end(correspondencesArray), 0), end(correspondencesArray));
             nPoints = correspondencesArray.size();
+            if (nPoints != 0)
+            {
+                // TODO: Solve the system ans!!!
+                VectorXf x(6);
+                x = A.bdcSvd(ComputeThinU | ComputeThinV).solve(b); 
+                float alpha = x(0), beta = x(1), gamma = x(2);
+
+                // Build the pose matrix
+                Matrix3f rotation = AngleAxisf(alpha, Vector3f::UnitX()).toRotationMatrix() *
+                                    AngleAxisf(beta,  Vector3f::UnitY()).toRotationMatrix() *
+                                    AngleAxisf(gamma, Vector3f::UnitZ()).toRotationMatrix();
+                
+                Vector3f translation = x.tail(3);
+
+                // TODO: Build the pose matrix using the rotation and translation matrices
+                //transMatrixcur = estimatedPose*transMatrixcur;
+                std::cout << "rotation "    << rotation    << std::endl;
+                std::cout << "translation " << translation << std::endl;
+
+                transMatrixcur.block<3, 3>(0, 0) = rotation * transMatrixcur.block<3, 3>(0, 0);
+                transMatrixcur.block<3, 1>(0, 3) = rotation * transMatrixcur.block<3, 1>(0, 3) + translation;
+            }
             std::cout << "how many correspondences: " << nPoints << std::endl;
 
             //std::cout << "estimatedPose " << estimatedPose << std::endl;
@@ -155,7 +162,7 @@ bool reconstructRoom(std::string path, std::string outName) {
         }
         //to cam coordinates
         Matrix4f currentCameraPose = transMatrixcur.inverse();
-
+        //currentCameraPose = Matrix4f::Identity();
 		std::cout << "Current camera pose: " << std::endl << currentCameraPose << std::endl;
         //add world coordinate transformation matrix
 		estimatedPoses.push_back( transMatrixcur);
@@ -176,6 +183,7 @@ bool reconstructRoom(std::string path, std::string outName) {
         }
         
         target = source;
+        //target= getRaycasted Vertices
 		iter++;
 	}
     return true;
@@ -186,7 +194,7 @@ int main()
 {
 
     // In the following cases we should use arrays not vectors
-    bool yokArtik = reconstructRoom(std::string("../Data/rgbd_dataset_freiburg1_xyz/"), std::string("mesh_"));
-    return yokArtik;
+    bool reconstruction = reconstructRoom(std::string("../Data/rgbd_dataset_freiburg1_xyz/"), std::string("mesh_"));
+    return reconstruction;
     
 }
