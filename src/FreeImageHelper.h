@@ -7,6 +7,9 @@
 #include <algorithm>
 
 #include <FreeImage.h>
+#include <stdexcept>
+#include <limits>
+
 
 #ifndef MINF
 #define MINF -std::numeric_limits<float>::infinity()

@@ -12,15 +12,13 @@
 
 #include <time.h>       /* clock_t, clock, CLOCKS_PER_SEC */
 
-bool reconstructRoom(std::string path, std::string outName) {
-    std::string filenameIn = path;
-    std::string filenameBaseOut = outName;
+bool reconstructRoom(const std::string& path, const std::string& outName) {
 
     // Load video
     std::cout << "Initialize virtual sensor..." << std::endl;
     VirtualSensor sensor;
 
-    if (!sensor.init(filenameIn)) {
+    if (!sensor.init(path)) {
         std::cout << "Failed to initialize the sensor!\nCheck file path!" << std::endl;
         return -1;
     }
@@ -31,7 +29,7 @@ bool reconstructRoom(std::string path, std::string outName) {
     std::vector<Matrix4f> estimatedPoses;
     //the transformation matrix of the current pose (which will be updated every iteration)
     Matrix4f transMatrixcur = Matrix4f::Identity();
-    //normally pass the inverse but it is identity so dont need it
+    //normally pass the inverse, but it is identity so don't need it
     estimatedPoses.push_back(transMatrixcur);
 
     //PointCloud previous = target;
@@ -174,8 +172,8 @@ bool reconstructRoom(std::string path, std::string outName) {
         
         if (iter % 1 == 0) {
             std::stringstream ss;
-            ss << filenameBaseOut << sensor.getCurrentFrameCnt() << ".off";
-            std::cout << filenameBaseOut << sensor.getCurrentFrameCnt() << ".off" << std::endl;
+            ss << outName << sensor.getCurrentFrameCnt() << ".off";
+            std::cout << outName << sensor.getCurrentFrameCnt() << ".off" << std::endl;
             if (!resultingMesh.writeMesh(ss.str())) {
                 std::cout << "Failed to write mesh!\nCheck file path!" << std::endl;
                 return -1;
