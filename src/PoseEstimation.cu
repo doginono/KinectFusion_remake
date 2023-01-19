@@ -87,10 +87,9 @@ namespace CUDA {
 		cudaMemcpy(normalsPrevious, previous.getNormals().data(), sizeof(Vector3f) * 640 * 480, cudaMemcpyHostToDevice);
 		cudaMemcpy(correspondencesPointer, correspondencesArray.data(), sizeof(int) * 640 * 480, cudaMemcpyHostToDevice);
 		cudaMemcpy(camparamPointer, camparams.data(), sizeof(float) * 4, cudaMemcpyHostToDevice);
-
-		poseEstimation_kernel <<<4800, 64 >>> (camparamPointer,	verticesSource, verticesPrevious, normalsSource, normalsPrevious, lastpose,
+		//later you change
+		poseEstimation_kernel <<<307200, 1 >>> (camparamPointer,	verticesSource, verticesPrevious, normalsSource, normalsPrevious, lastpose,
 			transMatrixcur, previousRotInv, correspondencesPointer);
-		cudaDeviceSynchronize();
 
 		cudaMemcpy(correspondencesArray.data(), correspondencesPointer, sizeof(int) * 640 * 480, cudaMemcpyDeviceToHost);
 		

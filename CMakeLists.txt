@@ -50,12 +50,17 @@ set(HEADER_FILES
     ${SOURCE_DIR}/FreeImageHelper.h
     ${SOURCE_DIR}/Eigen.h
     ${SOURCE_DIR}/SimpleMesh.h
+    ${SOURCE_DIR}/Volume.h
+    ${SOURCE_DIR}/SurfaceReconstruction.cuh
+
 )
 
 set(SOURCE_FILES 
     ${SOURCE_DIR}/FreeImageHelper.cpp
     ${SOURCE_DIR}/PoseEstimation.cu
     ${SOURCE_DIR}/SurfaceMeasurement.cu
+    ${SOURCE_DIR}/SurfaceReconstruction.cu
+    ${SOURCE_DIR}/Volume.cpp
 )
 
 link_directories(${FreeImage_LIBRARY_DIR})
