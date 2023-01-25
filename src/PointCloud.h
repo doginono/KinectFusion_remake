@@ -9,6 +9,7 @@ typedef Eigen::Matrix<unsigned char, 4, 1> Vector4uc;
 
 class PointCloud {
 public:
+    PointCloud() = default;
 
     PointCloud(float* depthMap, const Matrix3f& depthIntrinsics, const Matrix4f& depthExtrinsics, const unsigned width, const unsigned height, unsigned downsampleFactor = 1, float maxDistance = 0.1f) {
         // Get depth intrinsics.
