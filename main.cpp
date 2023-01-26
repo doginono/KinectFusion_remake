@@ -52,6 +52,8 @@ struct Data {
  */
 void generateFrameFromModel() {
     // TODO implement depth map generation by raycasting the TSDF
+
+    // TODO optional: Use FreeImageHelper SaveImageToFile() to visualize the newly created depth map
 }
 
 /**
