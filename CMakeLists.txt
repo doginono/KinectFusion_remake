@@ -59,6 +59,7 @@ set(HEADER_FILES
     ${SOURCE_DIR}/SimpleMesh.h
     ${SOURCE_DIR}/Volume.h
     ${SOURCE_DIR}/SurfaceReconstruction.cuh
+    ${SOURCE_DIR}/SurfacePrediction.cuh
     ${RAYCASTER_DIR}/RayCaster.h
     ${RAYCASTER_DIR}/Ray.h
 )
@@ -71,6 +72,8 @@ set(SOURCE_FILES
     ${SOURCE_DIR}/Volume.cpp
     ${RAYCASTER_DIR}/RayCaster.cpp
     ${RAYCASTER_DIR}/Ray.cpp
+    ${SOURCE_DIR}/SurfacePrediction.cu
+
 )
 
 link_directories(${FreeImage_LIBRARY_DIR})

@@ -52,7 +52,7 @@ struct Data {
  */
 void generateFrameFromModel() {
     // TODO implement depth map generation by raycasting the TSDF
-
+    
     // TODO optional: Use FreeImageHelper SaveImageToFile() to visualize the newly created depth map
 }
 
@@ -248,17 +248,30 @@ int reconstructRoom(const std::string &path, const std::string &outName) {
 
     // Iterate over frames: do pose estimation (from 3rd frame on calculate previous depth map from model), then integrate into TSDF
     unsigned int iter = 0;
-    const unsigned int iMax = 2;
+    const unsigned int iMax = 12;
 
     while (sensor.processNextFrame() && iter <= iMax) {
 
         // Frame 0:     no pose estimation necessary since it defines the base world pose
         // Frame 1:     frame-to-frame pose estimation (no information gain from TSDF, only contains Frame 0)
         // Frames > 1:  frame-to-model pose estimation (generate artificial frame from TSDF containing fused data)
-        if (iter > 1) generateFrameFromModel();
         poseEstimation(iter, sensor, frame, _data);
         updateTSDF(TSDF, frame, _data);
+        if (iter > 1) generateFrameFromModel();
 
+        SimpleMesh currentDepthMesh{ sensor, _data.currentCameraPose, 0.1f };
+        SimpleMesh currentCameraMesh = SimpleMesh::camera(_data.currentCameraPose, 0.0015f);
+        SimpleMesh resultingMesh = SimpleMesh::joinMeshes(currentDepthMesh, currentCameraMesh, Matrix4f::Identity());
+
+        if (iter % 5 == 0) {
+            std::stringstream ss;
+            ss << outName << sensor.getCurrentFrameCnt() << ".off";
+            std::cout << outName << sensor.getCurrentFrameCnt() << ".off" << std::endl;
+            if (!resultingMesh.writeMesh(ss.str())) {
+                //std::cout << "Failed to write mesh!\nCheck file path!" << std::endl;
+                return -1;
+            }
+        }
         iter++;
     }
 
@@ -268,7 +281,7 @@ int reconstructRoom(const std::string &path, const std::string &outName) {
 int main() {
     // In the following cases we should use arrays not vectors
     clock_t t = clock();
-    int reconstruction = reconstructRoom(std::string("../../Data/rgbd_dataset_freiburg1_xyz/"), std::string("mesh_"));
+    int reconstruction = reconstructRoom(std::string("../Data/rgbd_dataset_freiburg1_xyz/"), std::string("mesh_"));
     t = clock() - t;
     std::cout << "time    " << (float) t / CLOCKS_PER_SEC;
     return reconstruction;
