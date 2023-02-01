@@ -12,6 +12,7 @@
 #include "src/SurfaceReconstruction.cuh"
 #include <time.h>
 #include "src/Volume.h"
+#include "src/SurfacePrediction.cuh"
 
 #define IMAGE_WIDTH 640
 #define IMAGE_HEIGHT 480
@@ -30,6 +31,7 @@ struct Data {
     Matrix4f estimatedPoseBefore{};
     Matrix4f currentCameraPose{};
     float *depthMap;
+
     Matrix3f depthIntrinsics{};
     std::vector<float> camparams{};
     std::vector<Matrix4f> estimatedPoses{};
@@ -50,10 +52,25 @@ struct Data {
 /**
  * Generates a synthetic depth map from the fused data in the TSDF.
  */
-void generateFrameFromModel() {
+void generateFrameFromModel(Volume& TSDF, PointCloud sourceFrame, PointCloud frame, Data& _data) {
     // TODO implement depth map generation by raycasting the TSDF
+    // frame is what I had the last time will be updated with generate from model
     
+    // Idea:shine light from the camera to the volume
+    // depthmap from new one not relevant, frame already has its depth map
+    std::vector<Vector3f> normalMap(IMAGE_WIDTH * IMAGE_HEIGHT, Vector3f(MINF, MINF, MINF));
+    std::vector<Vector3f> points(IMAGE_WIDTH * IMAGE_HEIGHT, Vector3f(MINF, MINF, MINF));
+    frame.m_points = points;
+    //frame.m_points = normalMap;
+
+    std::cout << _data.currentPose.block<3,3>(0,0) * frame.m_points[19011] << std::endl;
+    CUDA::SurfacePrediction(TSDF.min, TSDF.max, TSDF.weights, TSDF.vol, _data.currentCameraPose, _data.currentPose, frame.m_points, frame.m_normals, _data.camparams);
+    // After Cuda done delete this add frame= (depth, normals)
+    //std::cout << _data.currentPose.block<3, 3>(0, 0)*frame.m_points[305434]+ _data.currentPose.block<3, 1>(0, 3) << std::endl;
+    std::cout << frame.m_points[270511] << std::endl;
+
     // TODO optional: Use FreeImageHelper SaveImageToFile() to visualize the newly created depth map
+    //frame = sourceFrame;
 }
 
 /**
@@ -70,7 +87,7 @@ void poseEstimation(const unsigned int iter, VirtualSensor &sensor, PointCloud &
     _data.currentPose = _data.estimatedPoses[iter];
     _data.previousRotInv = _data.estimatedPoses[iter].block<3, 3>(0, 0).inverse(); //To cam coordinates last
     _data.estimatedPoseBefore = _data.estimatedPoses[iter]; // to world coordinates last
-
+    
     _data.depthMap = sensor.getDepth();
     _data.depthIntrinsics = sensor.getDepthIntrinsics();
     float fovX = _data.depthIntrinsics(0, 0);
@@ -80,7 +97,7 @@ void poseEstimation(const unsigned int iter, VirtualSensor &sensor, PointCloud &
     _data.camparams = {fovX, fovY, cX, cY};
 
     //depthextrinsics always init with identity
-    PointCloud sourceFrame{_data.depthMap, sensor.getDepthIntrinsics(), sensor.getDepthExtrinsics(), sensor.getDepthImageWidth(), sensor.getDepthImageHeight()};
+    PointCloud sourceFrame{ sensor.getDepth(), sensor.getDepthIntrinsics(), sensor.getDepthExtrinsics(), sensor.getDepthImageWidth(), sensor.getDepthImageHeight()};
 
     //Can be converted to Cuda
     for (int j = 0; j < 2; j++) {
@@ -92,7 +109,6 @@ void poseEstimation(const unsigned int iter, VirtualSensor &sensor, PointCloud &
         // Matrix from camera Space to World space
 
         std::vector<int> correspondencesArray(IMAGE_WIDTH * IMAGE_HEIGHT, 0); // 640*480 all value zeros
-
         //estimatedPoses[iter] is the last found pose. which is not updated. hold it for transformations
         CUDA::poseEstimation(sourceFrame, frame, _data.camparams,
                              _data.estimatedPoseBefore, _data.currentPose, _data.previousRotInv, correspondencesArray);
@@ -160,7 +176,6 @@ void poseEstimation(const unsigned int iter, VirtualSensor &sensor, PointCloud &
             //currentPose = estimatedPose*currentPose;
             //std::cout << "rotation "    << rotation    << std::endl;
             //std::cout << "translation " << translation << std::endl;
-
             _data.currentPose.block<3, 3>(0, 0) = rotation * _data.currentPose.block<3, 3>(0, 0);
             _data.currentPose.block<3, 1>(0, 3) = rotation * _data.currentPose.block<3, 1>(0, 3) + translation;
         }
@@ -170,6 +185,7 @@ void poseEstimation(const unsigned int iter, VirtualSensor &sensor, PointCloud &
 
     }
 
+
     //to cam coordinates
     _data.currentCameraPose = _data.currentPose.inverse();
     //currentCameraPose = Matrix4f::Identity();
@@ -177,7 +193,6 @@ void poseEstimation(const unsigned int iter, VirtualSensor &sensor, PointCloud &
     //add world coordinate transformation matrix
     _data.estimatedPoses.push_back(_data.currentPose);
 
-    frame = sourceFrame;
 }
 
 /**
@@ -188,29 +203,11 @@ void poseEstimation(const unsigned int iter, VirtualSensor &sensor, PointCloud &
  */
 void updateTSDF(Volume &TSDF, PointCloud frame, Data &_data) {
     //Now surface reconstruction
-
-    /*
-    SimpleMesh currentDepthMesh{ sensor, currentCameraPose, 0.1f};
-    SimpleMesh currentCameraMesh = SimpleMesh::camera(currentCameraPose, 0.0015f);
-    SimpleMesh resultingMesh = SimpleMesh::joinMeshes(currentDepthMesh, currentCameraMesh, Matrix4f::Identity());
-
-    if (iter % 5 == 0) {
-        std::stringstream ss;
-        ss << outName << sensor.getCurrentFrameCnt() << ".off";
-        std::cout << outName << sensor.getCurrentFrameCnt() << ".off" << std::endl;
-        if (!resultingMesh.writeMesh(ss.str())) {
-            //std::cout << "Failed to write mesh!\nCheck file path!" << std::endl;
-            return -1;
-        }
-    }
-    */
     //voxvalue and weight will be updated everytime
     //add volume h and cpp
     //then init a empty tsdf clean() function
     // then begin initilizing
-
     CUDA::SurfaceReconstruction(TSDF.min, TSDF.max, TSDF.weights, TSDF.vol, _data.currentCameraPose, _data.currentPose, _data.depthMap, frame.getNormals(), _data.camparams);
-
     std::cout << *std::max_element(TSDF.vol, TSDF.vol + 512 * 512 * 512) << std::endl;
 }
 
@@ -223,6 +220,7 @@ int reconstructRoom(const std::string &path, const std::string &outName) {
     // 512^3 voxels like suggested in the paper, Init the volume with plausible range!!! These are random values which I believe contains all the first frame
 
     Volume TSDF(Vector3d{-1.5, -1.0, -0.1}, Vector3d{1.5, 1.0, 3.5}, 512, 512, 512, 3);
+    //I am oneing out memory if it makes sense. Because if it finds a zero in the ray direction it stops
     TSDF.zeroOutMemory();
     std::cout << TSDF.vol[512] << std::endl;
     Vector3f distanceBetweenVoxels((TSDF.max[0] - TSDF.min[0]) / 511,
@@ -255,15 +253,21 @@ int reconstructRoom(const std::string &path, const std::string &outName) {
         // Frame 0:     no pose estimation necessary since it defines the base world pose
         // Frame 1:     frame-to-frame pose estimation (no information gain from TSDF, only contains Frame 0)
         // Frames > 1:  frame-to-model pose estimation (generate artificial frame from TSDF containing fused data)
-        poseEstimation(iter, sensor, frame, _data);
-        updateTSDF(TSDF, frame, _data);
-        if (iter > 1) generateFrameFromModel();
+        
+        //came now
+        PointCloud sourceFrame{ sensor.getDepth(), sensor.getDepthIntrinsics(), sensor.getDepthExtrinsics(), sensor.getDepthImageWidth(), sensor.getDepthImageHeight()};
 
+        if (iter > 1) generateFrameFromModel(TSDF, sourceFrame, frame, _data);
+        poseEstimation(iter, sensor, frame, _data);
+        updateTSDF(TSDF, sourceFrame, _data);
+        //Matrix4f cameraToWorld = _data.currentCameraPose.inverse();
         SimpleMesh currentDepthMesh{ sensor, _data.currentCameraPose, 0.1f };
         SimpleMesh currentCameraMesh = SimpleMesh::camera(_data.currentCameraPose, 0.0015f);
         SimpleMesh resultingMesh = SimpleMesh::joinMeshes(currentDepthMesh, currentCameraMesh, Matrix4f::Identity());
+        
+        //will be left out after generate
 
-        if (iter % 5 == 0) {
+        if (iter % 1 == 0) {
             std::stringstream ss;
             ss << outName << sensor.getCurrentFrameCnt() << ".off";
             std::cout << outName << sensor.getCurrentFrameCnt() << ".off" << std::endl;

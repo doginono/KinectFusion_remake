@@ -57,6 +57,38 @@ public:
         */
         
     }
+    //created for frame update for model
+    PointCloud(std::vector<Vector3f> pointsTmp, std::vector<Vector3f> normals, const Matrix3f& depthIntrinsics, const Matrix4f& depthExtrinsics, const unsigned width, const unsigned height, unsigned downsampleFactor = 1, float maxDistance = 0.1f) {
+        // Get depth intrinsics1.
+        float fovX = depthIntrinsics(0, 0);
+        float fovY = depthIntrinsics(1, 1);
+        float cX = depthIntrinsics(0, 2);
+        float cY = depthIntrinsics(1, 2);
+        const float maxDistanceHalved = maxDistance / 2.f;
+
+        // Compute inverse depth extrinsics.
+        Matrix4f depthExtrinsicsInv = depthExtrinsics.inverse();
+        Matrix3f rotationInv = depthExtrinsicsInv.block(0, 0, 3, 3);
+        Vector3f translationInv = depthExtrinsicsInv.block(0, 3, 3, 1);
+
+        // Back-project the pixel depths into the camera space. In camera Space
+       // std::vector<Vector3f> pointsTmp(width * height);
+
+        // For every pixel row.
+
+        m_depthExtrinsics = depthExtrinsics;
+        std::vector<float> camparams = { fovX ,fovY ,cX ,cY };
+        // took the depth value in CAMSPACE Let it be in camspace// the rotvalues are not needed
+       // CUDA::initSensorFrame(depthMap, rotationInv, translationInv, camparams, pointsTmp);
+
+        //std::vector<Vector3f> normalsTmp(width * height);
+        //CUDA::initnormalMap(pointsTmp, maxDistanceHalved, normalsTmp);
+
+        //can be parallelized later
+        m_points = pointsTmp;
+        m_normals = normals;
+
+    }
     
     std::vector<Vector3f>& getPoints() {
         return m_points;

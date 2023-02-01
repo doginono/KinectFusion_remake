@@ -49,7 +49,7 @@ void Volume::compute_ddx_dddx()
 void Volume::zeroOutMemory()
 {
 	for (uint i1 = 0; i1 < dx * dy * dz; i1++) {
-		vol[i1] = double(0);
+		vol[i1] = double(1);
 		weights[i1] = double(0);
 		}
 

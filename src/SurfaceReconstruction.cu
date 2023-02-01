@@ -68,6 +68,9 @@ __global__ void surfaceReconstructionKernel(Vector3d min, Vector3d max, double* 
 					//assuming equal weights we can update it later// running average added
 					voxValues[respectiveX * 512 * 512 + respectiveY * 512 + z] = (voxWeights[respectiveX * 512 * 512 + respectiveY * 512 + z]*voxValues[respectiveX * 512 * 512 + respectiveY * 512 + z] 
 																				+ voxCurrentValue)/(voxWeights[respectiveX * 512 * 512 + respectiveY * 512 + z]+1);
+					if (voxValues[respectiveX * 512 * 512 + respectiveY * 512 + z] < 1 && voxValues[respectiveX * 512 * 512 + respectiveY * 512 + z]>0) {
+						//printf("%f \n", voxValues[respectiveX * 512 * 512 + respectiveY * 512 + z]);
+					}
 					//This should be updated
 					voxWeights[respectiveX * 512 * 512 + respectiveY * 512 + z]+= 1;// voxWeights[respectiveX * 512 * 512 + respectiveY * 512 + z];
 				}
