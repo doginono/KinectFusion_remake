@@ -2,6 +2,37 @@
 #include "device_launch_parameters.h"
 #include "SurfaceReconstruction.cuh"
 
+
+
+__device__ __forceinline__
+float interpolate_trilinearly(const Vector3f& point, double* voxValues,
+	const int volume_size, const float voxel_scale)
+{
+	Vector3i point_in_grid = Vector3i(point.x(), point.y(),point.z());
+
+	const float vx = ( (point_in_grid.x()) + 0.5f);
+	const float vy = ( (point_in_grid.y()) + 0.5f);
+	const float vz = ( (point_in_grid.z()) + 0.5f);
+
+	point_in_grid.x() = (point.x() < vx) ? (point_in_grid.x() - 1) : point_in_grid.x();
+	point_in_grid.y() = (point.y() < vy) ? (point_in_grid.y() - 1) : point_in_grid.y();
+	point_in_grid.z() = (point.z() < vz) ? (point_in_grid.z() - 1) : point_in_grid.z();
+
+	const float a = (point.x() - ( (point_in_grid.x()) + 0.5f));
+	const float b = (point.y() - ( (point_in_grid.y()) + 0.5f));
+	const float c = (point.z() - ( (point_in_grid.z()) + 0.5f));
+
+	return  voxValues[(point_in_grid.x()) * 512 * 512 + (point_in_grid.y()) * 512 + (point_in_grid.z())] * (1 - a) * (1 - b) * (1 - c) +
+		 voxValues[(point_in_grid.x()) * 512 * 512 + (point_in_grid.y()) * 512 + (point_in_grid.z()+1)] * (1 - a) * (1 - b) * c +
+		 voxValues[(point_in_grid.x()) * 512 * 512 + (point_in_grid.y()+1) * 512 + (point_in_grid.z())] * (1 - a) * b * (1 - c) +
+		 voxValues[(point_in_grid.x()) * 512 * 512 + (point_in_grid.y()+1) * 512 + (point_in_grid.z() + 1)] * (1 - a) * b * c +
+		 voxValues[(point_in_grid.x()+1) * 512 * 512 + (point_in_grid.y()) * 512 + (point_in_grid.z())] *   a * (1 - b) * (1 - c) +
+		 voxValues[(point_in_grid.x() + 1) * 512 * 512 + (point_in_grid.y()) * 512 + (point_in_grid.z()+1)] *   a * (1 - b) * c +
+		 voxValues[(point_in_grid.x() + 1) * 512 * 512 + (point_in_grid.y()+1) * 512 + (point_in_grid.z())] *   a * b * (1 - c) +
+		 voxValues[(point_in_grid.x() + 1) * 512 * 512 + (point_in_grid.y() + 1) * 512 + (point_in_grid.z()+1)] *   a * b * c;
+}
+
+
 //voxweights vox values, depthmap, camparams needs to be copied needs to be included
 __global__ void surfacePredictionKernel(Vector3d min, Vector3d max, double* voxWeights, double* voxValues, Matrix4f currentCameraPose, Matrix4f transMatrixcur,
 	Vector3f* points, Vector3f* normals, float* camparams, Vector3f voxelDistance)
@@ -27,29 +58,77 @@ __global__ void surfacePredictionKernel(Vector3d min, Vector3d max, double* voxW
 	float updateStepRay = voxelDistance[2];
 	Vector3f raystart;
 	//to world coordinates in grid
-	raystart = transMatrixcur.block<3, 1>(0, 3) +raydirection*updateStepRay/ voxelDistance[2];
+	raystart = (transMatrixcur.block<3, 1>(0, 3) + raydirection * updateStepRay )/ voxelDistance[2];
+	Vector3f tmp = raystart;
+
 	//raystart[1] = (transMatrixcur.block<3, 1>(0, 3)[1] - min[1]) / (max[1] - min[1]) / voxelDistance[1];
 	//raystart[2] = (transMatrixcur.block<3, 1>(0, 3)[2] - min[2]) / (max[2] - min[2]) / voxelDistance[2];
+	float previousTsdf = 1;
+	float tsdf = 1;
+	
 	for (int i = 0; i < 512 ; i++) {
-		//ray is in the grid
-		raystart = (transMatrixcur.block<3, 1>(0, 3) + (raydirection * (updateStepRay)) / voxelDistance[2]);
+		//ray is in the grid coord
+		raystart = (transMatrixcur.block<3, 1>(0, 3) + (raydirection * updateStepRay)) / voxelDistance[2];
 
 		//raystart =  (updateStepRay)*raydirection ;
+		
 		//updateStepRay += voxelDistance[2] * raydirection;
 		if((raystart.x())>0&& int(raystart.y())>0&& int(raystart.z())>0 &&
 			(raystart.x()) < 512 && int(raystart.y()) < 512 && int(raystart.z()) <512 &&
-			voxValues[int(raystart.x()) * 512 * 512 + int(raystart.y()) * 512 + int(raystart.z())]<=0){// && voxValues[int(raystart.x()) * 512 * 512 + int(raystart.y()) * 512 + int(raystart.z())] > 0) {
-			printf("%i , %i ,%i \n", int(raystart.x()), int(raystart.y()), int(raystart.z()));
-			printf("Vox Values %f \n", voxValues[int(raystart.x()) * 512 * 512 + int(raystart.y()) * 512 + int(raystart.z())]);
-			Vector3f pointFound;
-			//grid to world
-			pointFound = transMatrixcur.block<3, 1>(0, 3) + raydirection * updateStepRay;
+			voxValues[int(raystart.x()) * 512 * 512 + int(raystart.y()) * 512 + int(raystart.z())]<=0 ){// && voxValues[int(raystart.x()) * 512 * 512 + int(raystart.y()) * 512 + int(raystart.z())] > 0) {
+			previousTsdf = tsdf;
+			tsdf = voxValues[int(raystart.x()) * 512 * 512 + int(raystart.y()) * 512 + int(raystart.z())];
+			if (tsdf >0 || previousTsdf<=0 || tsdf==1 ) {
+				break;
+			}
+			if (tsdf <= 0) {
+			
+				//printf("%i , %i ,%i \n", int(raystart.x()), int(raystart.y()), int(raystart.z()));
+				//printf("Vox Values %f \n", voxValues[int(raystart.x()) * 512 * 512 + int(raystart.y()) * 512 + int(raystart.z())]);
+				Vector3f pointFound;
+				//grid to world
+				//update step ray is the length of the raydirection
+				//this seems to be working
+				pointFound = Vector3f(min[0] + voxelDistance[0] * raystart[0],
+					min[1] + voxelDistance[1] * raystart[1],
+					min[2] + voxelDistance[2] * raystart[2]);
+				//printf(" Raystart: %f %f %f \n", raystart[0], raystart[1], raystart[2]);
+				//printf(" Raydirection: %f %f %f \n", raydirection[0], raydirection[1], raydirection[2]);
+				if (tsdf < 0) {
+					
+						printf(" raycast: %f %f %f \n", raystart[0], raystart[1], raystart[2]);
+						//printf("raystart in Global %f %f %f  \n",)
+					
+				}
 
-			//pointFound = currentCameraPose.block<3, 3>(0, 0) * pointFound + currentCameraPose.block<3, 1>(0, 3);
-			points[respectiveX * 640 + respectiveY]=pointFound;
-			break;
-		}
+				pointFound = currentCameraPose.block<3, 3>(0, 0) * (pointFound - currentCameraPose.block<3, 1>(0, 3));
+			
+				//printf(" pointFoundCam: %f %f %f \n", pointFound[0], pointFound[1], pointFound[2]);
+				points[respectiveX * 640 + respectiveY]=pointFound;
+				//Now we need to find the normals
+				/* 
+				*	How the interpolation works :
+				*	Look at voxels upper lower, right left, front behind, and find out the value 
+				*	that normal should have by interpolating them
+				*/
+				Vector3f normal;
+				Vector3f shifted = raystart;
+				for (int i = 0; i < 3; i++) {
+					shifted = raystart;
+					shifted[i] += 1;
+					const float Fx1 = interpolate_trilinearly(shifted, voxValues, 512, 0);
+					shifted = raystart;
+					shifted[i] -= 1;
+					const float Fx2 = interpolate_trilinearly(shifted, voxValues, 512, 0);
+					normal[i] = (Fx1 - Fx2);
+				}
+				normal.normalize();
+				normals[respectiveX * 640 + respectiveY] = currentCameraPose.block<3, 3>(0, 0)* normal;
+				break;
+
+			}
 		updateStepRay = updateStepRay + voxelDistance[2];
+		}
 	}
 	//can never jump over a voxel this way
 	//goingto update through z axis therefore I chose the distance along the z axis
