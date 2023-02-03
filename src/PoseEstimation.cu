@@ -82,7 +82,7 @@ namespace CUDA {
         cudaMemcpy(correspondencesPointer, correspondencesArray.data(), sizeof(int) * 640 * 480, cudaMemcpyHostToDevice);
         cudaMemcpy(camparamPointer, camparams.data(), sizeof(float) * 4, cudaMemcpyHostToDevice);
         //later you change
-        poseEstimation_kernel <<<307200, 1 >>>(camparamPointer, verticesSource, verticesPrevious, normalsSource, normalsPrevious, lastpose,
+        poseEstimation_kernel <<<4800, 64 >>>(camparamPointer, verticesSource, verticesPrevious, normalsSource, normalsPrevious, lastpose,
                                                transMatrixcur, previousRotInv, correspondencesPointer);
 
         cudaMemcpy(correspondencesArray.data(), correspondencesPointer, sizeof(int) * 640 * 480, cudaMemcpyDeviceToHost);
