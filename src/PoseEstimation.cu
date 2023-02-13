@@ -23,10 +23,10 @@ __global__ void poseEstimation_kernel(float *camparams, Vector3f *verticesSource
             // Only difference is that I perspective projected the vertex from the last frame not frame before
             //we store in cameraspace estimatedPose no need to invert
 
-//Vector3f currentVertexCamSpace = previousRotInv * (currentVertexGlobal - estimatedPose.block<3, 1>(0, 3));
+            //Vector3f currentVertexCamSpace = previousRotInv * (currentVertexGlobal - estimatedPose.block<3, 1>(0, 3));
             Vector3f currentVertexCamSpace = previousRotInv * (currentVertexGlobal - estimatedPose.block<3, 1>(0, 3));
 
-//Now the perspective projection to pixel coordinates to find the corresponding Vertex
+            //Now the perspective projection to pixel coordinates to find the corresponding Vertex
             //Now we have the pixel coordinates for the frame before
             Vector2i pixelCoord(int(currentVertexCamSpace[0] * camparams[0] / currentVertexCamSpace[2] + camparams[2]),
                                 int(currentVertexCamSpace[1] * camparams[1] / currentVertexCamSpace[2] + camparams[3]));

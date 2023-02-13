@@ -7,7 +7,6 @@ project(KinectFusion_remake)
 # Options
 set(LIBRARY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../Libs CACHE PATH "Path to lib folder")
 set(SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src CACHE PATH "Path to source folder")
-set(RAYCASTER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/raycasting CACHE PATH "Path to RayCaster folder")
 set(Eigen3_DIR ${LIBRARY_DIR}/Eigen/share/eigen3/cmake CACHE PATH "Path to installed Eigen")
 set(glog_DIR ${LIBRARY_DIR}/glog-lib/lib/cmake/glog CACHE PATH "Path to installed glog")
 set(Ceres_DIR ${LIBRARY_DIR}/Ceres/CMake CACHE PATH "Path to installed Ceres")
@@ -60,8 +59,6 @@ set(HEADER_FILES
     ${SOURCE_DIR}/Volume.h
     ${SOURCE_DIR}/SurfaceReconstruction.cuh
     ${SOURCE_DIR}/SurfacePrediction.cuh
-    ${RAYCASTER_DIR}/RayCaster.h
-    ${RAYCASTER_DIR}/Ray.h
 )
 
 set(SOURCE_FILES 
@@ -70,8 +67,6 @@ set(SOURCE_FILES
     ${SOURCE_DIR}/SurfaceMeasurement.cu
     ${SOURCE_DIR}/SurfaceReconstruction.cu
     ${SOURCE_DIR}/Volume.cpp
-    ${RAYCASTER_DIR}/RayCaster.cpp
-    ${RAYCASTER_DIR}/Ray.cpp
     ${SOURCE_DIR}/SurfacePrediction.cu
 
 )

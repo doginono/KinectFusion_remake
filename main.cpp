@@ -52,7 +52,7 @@ struct Data {
 /**
  * Generates a synthetic depth map from the fused data in the TSDF.
  */
-void generateFrameFromModel(Volume& TSDF, PointCloud sourceFrame, PointCloud frame, Data& _data) {
+void generateFrameFromModel(Volume& TSDF, PointCloud& sourceFrame, PointCloud& frame, Data& _data) {
     // TODO implement depth map generation by raycasting the TSDF
     // frame is what I had the last time will be updated with generate from model
     
@@ -60,17 +60,14 @@ void generateFrameFromModel(Volume& TSDF, PointCloud sourceFrame, PointCloud fra
     // depthmap from new one not relevant, frame already has its depth map
     std::vector<Vector3f> normalMap(IMAGE_WIDTH * IMAGE_HEIGHT, Vector3f(MINF, MINF, MINF));
     std::vector<Vector3f> points(IMAGE_WIDTH * IMAGE_HEIGHT, Vector3f(MINF, MINF, MINF));
+    
+
+
     frame.m_points = points;
-    //frame.m_points = normalMap;
+    frame.m_normals = normalMap;
 
-    std::cout << _data.currentPose.block<3,3>(0,0) * frame.m_points[19011] << std::endl;
-    CUDA::SurfacePrediction(TSDF.min, TSDF.max, TSDF.weights, TSDF.vol, _data.currentCameraPose, _data.currentPose, frame.m_points, frame.m_normals, _data.camparams);
+    CUDA::SurfacePrediction(TSDF.min, TSDF.max, TSDF.weights, TSDF.vol, _data.currentCameraPose, _data.currentPose, frame.m_points, frame.m_normals, _data.camparams, frame);
     // After Cuda done delete this add frame= (depth, normals)
-    //std::cout << _data.currentPose.block<3, 3>(0, 0)*frame.m_points[305434]+ _data.currentPose.block<3, 1>(0, 3) << std::endl;
-    std::cout << frame.m_points[270511] << std::endl;
-
-    // TODO optional: Use FreeImageHelper SaveImageToFile() to visualize the newly created depth map
-    //frame = sourceFrame;
 }
 
 /**
@@ -100,7 +97,7 @@ void poseEstimation(const unsigned int iter, VirtualSensor &sensor, PointCloud &
     PointCloud sourceFrame{ sensor.getDepth(), sensor.getDepthIntrinsics(), sensor.getDepthExtrinsics(), sensor.getDepthImageWidth(), sensor.getDepthImageHeight()};
 
     //Can be converted to Cuda
-    for (int j = 0; j < 2; j++) {
+    for (int j = 0; j < 5; j++) {
         // First begin with current cameratoworld being identity
         // Update it incrementally for loop change now okay
         //currentPoser updated everytime holds the pose
@@ -126,11 +123,6 @@ void poseEstimation(const unsigned int iter, VirtualSensor &sensor, PointCloud &
         //toworld coordinates last found one
         Matrix3f rotationtmpBefore = _data.estimatedPoseBefore.block<3, 3>(0, 0);
         Vector3f translationtmpBefore = _data.estimatedPoseBefore.block<3, 1>(0, 3);
-        //std::cout << "rotationtmp" << rotationtmp << std::endl;
-        //std::cout << "rotationtmpBefore " << rotationtmpBefore << std::endl;
-        ////std::cout << "translationtmp" << rotationtmp << std::endl;
-        ////std::cout << "translationtmpBefore " << translationtmpBefore << std::endl;
-
 
 
         //fillthesystem 640*480
@@ -179,9 +171,6 @@ void poseEstimation(const unsigned int iter, VirtualSensor &sensor, PointCloud &
             _data.currentPose.block<3, 3>(0, 0) = rotation * _data.currentPose.block<3, 3>(0, 0);
             _data.currentPose.block<3, 1>(0, 3) = rotation * _data.currentPose.block<3, 1>(0, 3) + translation;
         }
-        //std::cout << "how many correspondences: " << nPoints << std::endl;
-
-        ////std::cout << "estimatedPose " << estimatedPose << std::endl;
 
     }
 
@@ -208,7 +197,7 @@ void updateTSDF(Volume &TSDF, PointCloud frame, Data &_data) {
     //then init a empty tsdf clean() function
     // then begin initilizing
     CUDA::SurfaceReconstruction(TSDF.min, TSDF.max, TSDF.weights, TSDF.vol, _data.currentCameraPose, _data.currentPose, _data.depthMap, frame.getNormals(), _data.camparams);
-    std::cout << *std::max_element(TSDF.vol, TSDF.vol + 512 * 512 * 512) << std::endl;
+    //std::cout << *std::max_element(TSDF.vol, TSDF.vol + 512 * 512 * 512) << std::endl;
 }
 
 int reconstructRoom(const std::string &path, const std::string &outName) {
@@ -222,12 +211,10 @@ int reconstructRoom(const std::string &path, const std::string &outName) {
     Volume TSDF(Vector3d{-1.5, -1.0, -0.1}, Vector3d{1.5, 1.0, 3.5}, 512, 512, 512, 3);
     //I am oneing out memory if it makes sense. Because if it finds a zero in the ray direction it stops
     TSDF.zeroOutMemory();
-    std::cout << TSDF.vol[512] << std::endl;
+    // << TSDF.vol[512] << std::endl;
     Vector3f distanceBetweenVoxels((TSDF.max[0] - TSDF.min[0]) / 511,
                                    (TSDF.max[1] - TSDF.min[1]) / 511,
                                    (TSDF.max[2] - TSDF.min[2]) / 511);
-    std::cout << distanceBetweenVoxels << std::endl;
-
     // Load video
     //std::cout << "Initialize virtual sensor..." << std::endl;
     VirtualSensor sensor;
@@ -241,33 +228,38 @@ int reconstructRoom(const std::string &path, const std::string &outName) {
     PointCloud frame{sensor.getDepth(), sensor.getDepthIntrinsics(), sensor.getDepthExtrinsics(), sensor.getDepthImageWidth(), sensor.getDepthImageHeight()};
 
     Data _data{};
+    _data.currentCameraPose = Matrix4f::Identity();
     _data.estimatedPoses.emplace_back(
             Matrix4f::Identity()); //the transformation matrix of the current pose (which will be updated every iteration), normally pass the inverse, but it is identity so don't need it
 
     // Iterate over frames: do pose estimation (from 3rd frame on calculate previous depth map from model), then integrate into TSDF
     unsigned int iter = 0;
-    const unsigned int iMax = 12;
+    const unsigned int iMax = 60;
 
     while (sensor.processNextFrame() && iter <= iMax) {
 
         // Frame 0:     no pose estimation necessary since it defines the base world pose
         // Frame 1:     frame-to-frame pose estimation (no information gain from TSDF, only contains Frame 0)
         // Frames > 1:  frame-to-model pose estimation (generate artificial frame from TSDF containing fused data)
-        
+        // the ray casting does not work yet because of that we apply only frame to frame tracking
         //came now
-        PointCloud sourceFrame{ sensor.getDepth(), sensor.getDepthIntrinsics(), sensor.getDepthExtrinsics(), sensor.getDepthImageWidth(), sensor.getDepthImageHeight()};
-
-        if (iter > 1) generateFrameFromModel(TSDF, sourceFrame, frame, _data);
+        PointCloud sourceFrame{ sensor.getDepth(), sensor.getDepthIntrinsics(), sensor.getDepthExtrinsics(), sensor.getDepthImageWidth(), sensor.getDepthImageHeight() };
+        
+        //if (iter > 1) generateFrameFromModel(TSDF, sourceFrame, frame, _data);
+        
         poseEstimation(iter, sensor, frame, _data);
         updateTSDF(TSDF, sourceFrame, _data);
+        //std::cout << "After Update " << frame.m_points[89*640 +181] << std::endl;
+       
+        
         //Matrix4f cameraToWorld = _data.currentCameraPose.inverse();
         SimpleMesh currentDepthMesh{ sensor, _data.currentCameraPose, 0.1f };
         SimpleMesh currentCameraMesh = SimpleMesh::camera(_data.currentCameraPose, 0.0015f);
         SimpleMesh resultingMesh = SimpleMesh::joinMeshes(currentDepthMesh, currentCameraMesh, Matrix4f::Identity());
-        
+        frame = sourceFrame;
         //will be left out after generate
-
-        if (iter % 1 == 0) {
+        
+        if (iter % 5 == 0) {
             std::stringstream ss;
             ss << outName << sensor.getCurrentFrameCnt() << ".off";
             std::cout << outName << sensor.getCurrentFrameCnt() << ".off" << std::endl;
